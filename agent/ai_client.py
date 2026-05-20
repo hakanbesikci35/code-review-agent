@@ -1,5 +1,5 @@
 import anthropic
-import google.generativeai as genai
+from google import genai
 
 
 class AIClient:
@@ -26,7 +26,9 @@ class AIClient:
         return message.content[0].text
 
     def _call_gemini(self, prompt: str) -> str:
-        genai.configure(api_key=self.api_key)
-        model = genai.GenerativeModel(self.model)
-        response = model.generate_content(prompt)
+        client = genai.Client(api_key=self.api_key)
+        response = client.models.generate_content(
+            model=self.model,
+            contents=prompt,
+        )
         return response.text
