@@ -247,28 +247,22 @@ def main():
     diff = load_diff()
     changed_files = load_changed_files()
 
-    event_name = os.environ.get("EVENT_NAME", "push")
     branch_name = os.environ.get("BRANCH_NAME", "unknown")
     commit_sha = os.environ.get("COMMIT_SHA", "")[:7]
-    pr_title = os.environ.get("PR_TITLE", "Başlıksız PR")
+    pr_title = os.environ.get("PR_TITLE", "")   # commit mesajı
     pr_author = os.environ.get("PR_AUTHOR", "Bilinmiyor")
-    pr_number = os.environ.get("PR_NUMBER", "0")
     repo_name = os.environ.get("REPO_NAME", "")
     ai_api_key = os.environ.get("AI_API_KEY", "")
     gmail_user = os.environ.get("GMAIL_USER", "")
     gmail_password = os.environ.get("GMAIL_APP_PASSWORD", "")
     review_email = os.environ.get("REVIEW_EMAIL", "")
 
-    is_pr = event_name == "pull_request"
 
     if not diff:
         logger.warning("Diff bulunamadı, işlem sonlandırılıyor.")
         sys.exit(0)
 
-    if is_pr:
-        logger.info(f"[PR] #{pr_number} inceleniyor: '{pr_title}' — yazar: {pr_author}")
-    else:
-        logger.info(f"[PUSH] branch: {branch_name} — commit: {commit_sha} — yazar: {pr_author}")
+    logger.info(f"[PUSH] branch: {branch_name} — commit: {commit_sha} — yazar: {pr_author}")
     logger.info(f"Değişen dosyalar ({len(changed_files)}): {changed_files}")
 
     system_prompt, user_prompt = build_prompt(
@@ -293,23 +287,16 @@ def main():
 
     # --- E-posta ---
     try:
-        if is_pr:
-            email_subject = f"[Code Review] PR #{pr_number} — {pr_title}"
-            email_title = pr_title
-            email_ref = f"PR #{pr_number}"
-        else:
-            email_subject = f"[Code Review] Push — {branch_name} ({commit_sha})"
-            email_title = pr_title  # commit mesajı
-            email_ref = f"Push / {branch_name} @ {commit_sha}"
-
         email_body = format_email_html(
-            report, email_title, pr_author, email_ref, repo_name, changed_files
+            report, pr_title, pr_author,
+            f"{branch_name} @ {commit_sha}",
+            repo_name, changed_files,
         )
         send_email(
             sender=gmail_user,
             password=gmail_password,
             recipient=review_email,
-            subject=email_subject,
+            subject=f"[Code Review] {branch_name} — {commit_sha}",
             body=email_body,
         )
         logger.info(f"Rapor maili gönderildi → {review_email}")
