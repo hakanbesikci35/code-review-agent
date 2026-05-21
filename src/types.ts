@@ -16,6 +16,13 @@ export interface ChecklistRule {
   severity: RuleSeverity;
 }
 
+export interface Attachment {
+  name: string;
+  size: string;
+  type: 'pdf' | 'doc' | 'image' | 'generic';
+  url?: string;
+}
+
 export interface Email {
   id: string;
   sender: string;
@@ -25,6 +32,7 @@ export interface Email {
   shortSummary: string;
   relatedRuleIds: string[]; // IDs of rules this email matches/violates
   read: boolean;
+  attachments?: Attachment[];
 }
 
 export interface DecisionItem {
