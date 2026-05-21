@@ -115,6 +115,43 @@ function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  // Fetch reviews from FastAPI backend
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/reviews');
+        if (!response.ok) throw new Error('Sunucudan veriler alınamadı');
+        const data = await response.json();
+        
+        // Map reviews to Email interface
+        const mappedEmails: Email[] = data.map((review: any) => ({
+          id: String(review.id),
+          sender: review.author,
+          subject: `${review.repo}: ${review.pushTitle}`,
+          date: review.createdDate ? new Date(review.createdDate).toLocaleString('tr-TR') : 'Bilinmeyen Tarih',
+          content: '', // Will fetch HTML detail dynamically on selection
+          shortSummary: `${review.branch} - ${review.commitSha.substring(0, 7)}`,
+          relatedRuleIds: [],
+          read: true,
+          attachments: [
+            {
+              name: `review_${review.id}.pdf`,
+              size: 'PDF Raporu',
+              type: 'pdf',
+              url: `http://localhost:8000/reviews/${review.id}/pdf`
+            }
+          ]
+        }));
+        
+        setEmails(mappedEmails);
+      } catch (error) {
+        console.error('FastAPI reviews listesi yüklenirken hata oluştu:', error);
+      }
+    };
+    
+    fetchReviews();
+  }, []);
+
   const toggleTheme = () => {
     setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
   };

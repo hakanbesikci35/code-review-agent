@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Plus, Edit, Trash2, Mail, AlertTriangle, CheckCircle, 
   ChevronRight, Calendar, User, X, Info, FileText, Download, Paperclip
@@ -27,6 +27,41 @@ export const ReportView: React.FC<ReportViewProps> = ({
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [currentRule, setCurrentRule] = useState<Partial<ChecklistRule> | null>(null);
   const [ruleFormError, setRuleFormError] = useState<string | null>(null);
+
+  // Auto-select the first email when the list is populated
+  useEffect(() => {
+    if (!selectedEmailId && emails.length > 0) {
+      setSelectedEmailId(emails[0].id);
+    }
+  }, [emails, selectedEmailId]);
+
+  // Fetch detailed review report (HTML) when a review is selected
+  useEffect(() => {
+    if (!selectedEmailId) return;
+    const email = emails.find(e => e.id === selectedEmailId);
+    if (email && !email.content) {
+      const fetchDetail = async () => {
+        try {
+          const response = await fetch(`http://localhost:8000/reviews/${selectedEmailId}`);
+          if (!response.ok) throw new Error('Detaylar sunucudan alınamadı');
+          const data = await response.json();
+          
+          setEmails(prev => prev.map(e => e.id === selectedEmailId ? {
+            ...e,
+            content: data.reportHtml || 'Rapor içeriği bulunamadı.'
+          } : e));
+        } catch (error) {
+          console.error('FastAPI review detayı yüklenirken hata oluştu:', error);
+          setEmails(prev => prev.map(e => e.id === selectedEmailId ? {
+            ...e,
+            content: 'Rapor detayları yüklenirken hata oluştu.'
+          } : e));
+        }
+      };
+      
+      fetchDetail();
+    }
+  }, [selectedEmailId]);
 
   // Filter rules based on search query
   const filteredRules = rules.filter(r => 
@@ -110,6 +145,16 @@ export const ReportView: React.FC<ReportViewProps> = ({
   };
 
   const handleDownloadAttachment = (attachment: Attachment) => {
+    if (attachment.url) {
+      const link = document.createElement('a');
+      link.href = attachment.url;
+      link.download = attachment.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+
     const replaceTurkishChars = (str: string) => {
       const map: Record<string, string> = {
         'ı': 'i', 'İ': 'I',
@@ -302,9 +347,11 @@ export const ReportView: React.FC<ReportViewProps> = ({
                         </div>
                       </div>
 
-                      <div className="mail-body">
-                        {selectedEmail.content}
-                      </div>
+                      <div 
+                        className="mail-body" 
+                        dangerouslySetInnerHTML={{ __html: selectedEmail.content }} 
+                        style={selectedEmail.content.trim().startsWith('<') ? { whiteSpace: 'normal' } : {}}
+                      />
 
                       {/* Attachment Section */}
                       {selectedEmail.attachments && selectedEmail.attachments.length > 0 && (
