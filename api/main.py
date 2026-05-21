@@ -63,7 +63,7 @@ def get_review(review_id: int):
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT "Id", "Branch", "CommitSha", "Author", "Repo", "PushTitle", "PdfData", "CreatedDate"
+                SELECT "Id", "Branch", "CommitSha", "Author", "Repo", "PushTitle", "ReportData", "CreatedDate"
                 FROM reviews
                 WHERE "Id" = %s AND "IsDeleted" = FALSE AND "IsActive" = TRUE
                 """,
@@ -93,7 +93,7 @@ def get_review_pdf(review_id: int):
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT "PdfData"
+                SELECT "ReportData"
                 FROM reviews
                 WHERE "Id" = %s AND "IsDeleted" = FALSE AND "IsActive" = TRUE
                 """,

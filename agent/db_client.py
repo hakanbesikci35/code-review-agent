@@ -24,7 +24,7 @@ def save_review(
             cur.execute(
                 """
                 INSERT INTO reviews
-                    ("Branch", "CommitSha", "Author", "Repo", "PushTitle", "PdfData",
+                    ("Branch", "CommitSha", "Author", "Repo", "PushTitle", "ReportData",
                      "IsActive", "IsDeleted")
                 VALUES (%s, %s, %s, %s, %s, %s, TRUE, FALSE)
                 """,
