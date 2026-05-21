@@ -49,7 +49,14 @@ const DEFAULT_EMAILS: Email[] = [
     content: 'Merhaba Ekip,\n\nSon kod commit incelemesinde, src/config/keys.ts dosyası içerisinde test API anahtarının açık metin (cleartext) olarak yazıldığını fark ettik. Lütfen bu dosyayı temizleyin ve anahtarı .env dosyasından çekilecek şekilde güncelleyin.\n\nİyi çalışmalar,\nGüvenlik Botu',
     shortSummary: 'keys.ts içerisinde açık metin API anahtarı sızıntısı.',
     relatedRuleIds: ['r1'],
-    read: false
+    read: false,
+    attachments: [
+      {
+        name: 'güvenlik_tarama_raporu_e1.pdf',
+        size: '1.4 MB',
+        type: 'pdf'
+      }
+    ]
   },
   {
     id: 'e2',
@@ -59,7 +66,14 @@ const DEFAULT_EMAILS: Email[] = [
     content: 'Bilgilendirme,\n\n/api/v1/analytics uç noktası üzerindeki ortalama sorgu yanıt süresi 480ms seviyesine ulaştı. Bu durum genel sistem performansını olumsuz etkilemektedir. Veritabanı sorgularının incelenmesi ve indeksleme yapılması önerilir.\n\nSaygılarımızla,\nİzleme Servisi',
     shortSummary: '/api/v1/analytics uç noktasında 480ms sorgu gecikmesi.',
     relatedRuleIds: ['r3'],
-    read: true
+    read: true,
+    attachments: [
+      {
+        name: 'sorgu_gecikme_analizi.pdf',
+        size: '620 KB',
+        type: 'pdf'
+      }
+    ]
   },
   {
     id: 'e3',
