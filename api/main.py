@@ -2,10 +2,12 @@ import os
 
 import psycopg2
 import uvicorn
-import weasyprint
+from io import BytesIO
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+from xhtml2pdf import pisa
 
 app = FastAPI(title="Code Review API")
 
@@ -100,7 +102,9 @@ def get_review_pdf(review_id: int):
             row = cur.fetchone()
         if not row or not row[0]:
             raise HTTPException(status_code=404, detail="Rapor bulunamadı")
-        pdf_bytes = weasyprint.HTML(string=row[0]).write_pdf()
+        buf = BytesIO()
+        pisa.CreatePDF(row[0], dest=buf)
+        pdf_bytes = buf.getvalue()
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
