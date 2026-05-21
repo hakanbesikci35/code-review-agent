@@ -137,7 +137,7 @@ Uyman gereken kurallar:
     checklist_text = build_checklist_text(checklist)
     files_str = ", ".join(changed_files) if changed_files else "Bilinmiyor"
 
-    user_prompt = f"""Aşağıdaki Pull Request'i incele ve raporu hazırla.
+    user_prompt = f"""Aşağıdaki Push'u incele ve raporu hazırla.
 
 ## PR Bilgileri
 - Başlık: {pr_title}
