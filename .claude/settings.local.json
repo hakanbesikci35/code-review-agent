@@ -4,7 +4,8 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Hakan\\\\Documents\\\\GitHub\\\\code-review-agent\" -Recurse -Force)",
       "Bash(Select-Object FullName)",
       "Bash(Sort-Object FullName)",
-      "Bash(Format-List)"
+      "Bash(Format-List)",
+      "Bash(del \"C:\\\\Users\\\\Hakan\\\\Documents\\\\GitHub\\\\code-review-agent\\\\api\\\\.env.example\")"
     ]
   }
 }
