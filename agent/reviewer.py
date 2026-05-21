@@ -10,6 +10,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parent))
 
 from ai_client import AIClient
+from db_client import save_review
 from email_client import send_email
 
 # ---------------------------------------------------------------------------
@@ -285,19 +286,32 @@ def main():
         logger.error(f"AI review başarısız oldu: {exc}")
         sys.exit(1)
 
-    # --- E-posta ---
+    # --- DB Kayıt ---
     try:
-        email_body = format_email_html(
+        report_html = format_email_html(
             report, pr_title, pr_author,
             f"{branch_name} @ {commit_sha}",
             repo_name, changed_files,
         )
+        save_review(
+            branch=branch_name,
+            commit_sha=commit_sha,
+            author=pr_author,
+            repo=repo_name,
+            push_title=pr_title,
+            report_html=report_html,
+        )
+    except Exception as exc:
+        logger.error(f"DB kaydı başarısız: {exc}")
+
+    # --- E-posta ---
+    try:
         send_email(
             sender=gmail_user,
             password=gmail_password,
             recipient=review_email,
             subject=f"[Code Review] {branch_name} — {commit_sha}",
-            body=email_body,
+            body=report_html,
         )
         logger.info(f"Rapor maili gönderildi → {review_email}")
     except Exception as exc:

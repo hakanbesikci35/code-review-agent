@@ -53,6 +53,7 @@ jobs:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           REVIEW_EMAIL: ${{ secrets.REVIEW_EMAIL }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           BRANCH_NAME: ${{ github.ref_name }}
           COMMIT_SHA: ${{ github.sha }}
           REPO_NAME: ${{ github.repository }}
