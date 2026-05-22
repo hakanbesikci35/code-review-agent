@@ -7,38 +7,6 @@ import { LoginView } from './components/LoginView';
 import type { User, Theme, ChecklistRule, Email } from './types';
 import './App.css';
 
-const DEFAULT_RULES: ChecklistRule[] = [
-  {
-    id: 'r1',
-    category: 'Güvenlik',
-    description: 'Tüm hassas API anahtarları çevre değişkenlerinde saklanmalı, kodda açık yazılmamalıdır.',
-    severity: 'high'
-  },
-  {
-    id: 'r2',
-    category: 'Güvenlik',
-    description: 'Giriş denemeleri IP başına dakikada maksimum 5 istek ile sınırlandırılmalıdır.',
-    severity: 'high'
-  },
-  {
-    id: 'r3',
-    category: 'Performans',
-    description: 'Veritabanı sorguları 100ms\'nin altında yanıt vermelidir.',
-    severity: 'medium'
-  },
-  {
-    id: 'r4',
-    category: 'Performans',
-    description: 'Görsel dosyaları yüklenmeden önce optimize edilmeli ve sıkıştırılmalıdır.',
-    severity: 'low'
-  },
-  {
-    id: 'r5',
-    category: 'Veri Bütünlüğü',
-    description: 'Veritabanı yedeklemesi her 12 saatte bir otomatik olarak gerçekleştirilmelidir.',
-    severity: 'medium'
-  }
-];
 
 const DEFAULT_EMAILS: Email[] = [
   {
@@ -101,7 +69,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Global State for Rules and Emails
-  const [rules, setRules] = useState<ChecklistRule[]>(DEFAULT_RULES);
+  const [rules, setRules] = useState<ChecklistRule[]>([]);
   const [emails, setEmails] = useState<Email[]>(DEFAULT_EMAILS);
 
   // Apply theme class to body
@@ -115,6 +83,21 @@ function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  // Fetch checklist from FastAPI backend
+  useEffect(() => {
+    const fetchChecklist = async () => {
+      try {
+        const res = await fetch('http://localhost:8000/checklist');
+        if (!res.ok) throw new Error();
+        const data: ChecklistRule[] = await res.json();
+        setRules(data);
+      } catch {
+        console.error('Checklist yüklenemedi.');
+      }
+    };
+    fetchChecklist();
+  }, []);
+
   // Fetch reviews from FastAPI backend
   useEffect(() => {
     const fetchReviews = async () => {
@@ -126,11 +109,13 @@ function App() {
         // Map reviews to Email interface
         const mappedEmails: Email[] = data.map((review: any) => ({
           id: String(review.id),
-          sender: review.author,
-          subject: `${review.repo}: ${review.pushTitle}`,
+          sender: review.author ?? 'Bilinmiyor',
+          subject: review.pushTitle ?? '-',
+          repo: review.repo ?? '-',
           date: review.createdDate ? new Date(review.createdDate).toLocaleString('tr-TR') : 'Bilinmeyen Tarih',
-          content: '', // Will fetch HTML detail dynamically on selection
-          shortSummary: `${review.branch} - ${review.commitSha.substring(0, 7)}`,
+          rawDate: review.createdDate ?? '',
+          content: '',
+          shortSummary: `${review.branch ?? '-'} @ ${(review.commitSha ?? '').substring(0, 7)}`,
           relatedRuleIds: [],
           read: true,
           attachments: [

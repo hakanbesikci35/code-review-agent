@@ -1108,11 +1108,20 @@ a {
 }
 
 /* REPORT VIEW STYLING */
+.report-view-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 70px - 64px);
+  overflow: hidden;
+}
+
 .report-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
-  align-items: start;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
 }
 
 @media (max-width: 1100px) {
@@ -1125,7 +1134,41 @@ a {
 .checklist-section {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.checklist-section .panel-card {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.checklist-section .panel-card .panel-card-body {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.mail-section {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.mail-section .panel-card {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mail-section .panel-card .panel-card-body {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .category-group {
@@ -1210,6 +1253,12 @@ a {
   padding: 2px 6px;
   border-radius: 4px;
   text-transform: uppercase;
+}
+
+.rule-severity-badge.critical {
+  background-color: hsl(350, 60%, 12%);
+  color: hsl(350, 90%, 60%);
+  border: 1px solid hsl(350, 50%, 25%);
 }
 
 .rule-severity-badge.high {

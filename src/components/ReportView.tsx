@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, Edit, Trash2, Mail, AlertTriangle, CheckCircle, 
-  ChevronRight, Calendar, User, X, Info, FileText, Download, Paperclip
+import {
+  Plus, Edit, Trash2,
+  ChevronRight, X, Info, Download, FileText, Search
 } from 'lucide-react';
-import type { ChecklistRule, Email, RuleSeverity, Attachment } from '../types';
+import type { ChecklistRule, Email, RuleSeverity } from '../types';
 
 interface ReportViewProps {
   searchQuery: string;
@@ -20,51 +20,69 @@ export const ReportView: React.FC<ReportViewProps> = ({
   emails,
   setEmails
 }) => {
-  // Active email selection
-  const [selectedEmailId, setSelectedEmailId] = useState<string | null>(emails[0]?.id || null);
-
   // Drawer state for adding/editing rules
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [currentRule, setCurrentRule] = useState<Partial<ChecklistRule> | null>(null);
   const [ruleFormError, setRuleFormError] = useState<string | null>(null);
 
-  // Auto-select the first email when the list is populated
-  useEffect(() => {
-    if (!selectedEmailId && emails.length > 0) {
-      setSelectedEmailId(emails[0].id);
-    }
-  }, [emails, selectedEmailId]);
+  // Filters
+  const [filterAuthor, setFilterAuthor] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
 
-  // Fetch detailed review report (HTML) when a review is selected
-  useEffect(() => {
-    if (!selectedEmailId) return;
-    const email = emails.find(e => e.id === selectedEmailId);
-    if (email && !email.content) {
-      const fetchDetail = async () => {
-        try {
-          const response = await fetch(`http://localhost:8000/reviews/${selectedEmailId}`);
-          if (!response.ok) throw new Error('Detaylar sunucudan alınamadı');
-          const data = await response.json();
-          
-          setEmails(prev => prev.map(e => e.id === selectedEmailId ? {
-            ...e,
-            content: data.reportHtml || 'Rapor içeriği bulunamadı.'
-          } : e));
-        } catch (error) {
-          console.error('FastAPI review detayı yüklenirken hata oluştu:', error);
-          setEmails(prev => prev.map(e => e.id === selectedEmailId ? {
-            ...e,
-            content: 'Rapor detayları yüklenirken hata oluştu.'
-          } : e));
-        }
-      };
-      
-      fetchDetail();
-    }
-  }, [selectedEmailId]);
+  // Modal state for viewing report HTML
+  const [modalEmail, setModalEmail] = useState<Email | null>(null);
+  const [modalLoading, setModalLoading] = useState(false);
 
-  // Filter rules based on search query
-  const filteredRules = rules.filter(r => 
+  const handleOpenModal = async (email: Email) => {
+    setModalEmail(email);
+    if (!email.content) {
+      setModalLoading(true);
+      try {
+        const res = await fetch(`http://localhost:8000/reviews/${email.id}`);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        const html = data.reportHtml || 'Rapor içeriği bulunamadı.';
+        setEmails(prev => prev.map(e => e.id === email.id ? { ...e, content: html } : e));
+        setModalEmail(prev => prev ? { ...prev, content: html } : prev);
+      } catch {
+        setModalEmail(prev => prev ? { ...prev, content: 'Rapor detayları yüklenirken hata oluştu.' } : prev);
+      } finally {
+        setModalLoading(false);
+      }
+    }
+  };
+
+  const handleDownloadPdf = async (email: Email) => {
+    let htmlContent = email.content;
+
+    if (!htmlContent) {
+      try {
+        const res = await fetch(`http://localhost:8000/reviews/${email.id}`);
+        const data = await res.json();
+        htmlContent = data.reportHtml || '';
+        setEmails(prev => prev.map(e => e.id === email.id ? { ...e, content: htmlContent } : e));
+      } catch {
+        alert('Rapor içeriği yüklenemedi.');
+        return;
+      }
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Popup engelleyici açık olabilir, lütfen izin verin.');
+      return;
+    }
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  };
+
+  // Filter rules
+  const filteredRules = rules.filter(r =>
     r.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
     r.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -72,20 +90,15 @@ export const ReportView: React.FC<ReportViewProps> = ({
   // Group rules by category
   const categories = Array.from(new Set(rules.map(r => r.category)));
 
-  // Filter emails based on search query
-  const filteredEmails = emails.filter(e => 
-    e.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    e.sender.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    e.content.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const selectedEmail = emails.find(e => e.id === selectedEmailId);
-
-  // Mark email as read on click
-  const handleSelectEmail = (id: string) => {
-    setSelectedEmailId(id);
-    setEmails(prev => prev.map(e => e.id === id ? { ...e, read: true } : e));
-  };
+  // Filter reports
+  const filteredEmails = emails.filter(e => {
+    if (filterAuthor && !e.sender.toLowerCase().includes(filterAuthor.toLowerCase())) return false;
+    if (filterDateFrom && e.rawDate && e.rawDate < filterDateFrom) return false;
+    if (filterDateTo && e.rawDate && e.rawDate > filterDateTo + 'T23:59:59') return false;
+    if (searchQuery && !e.subject.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        !e.sender.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    return true;
+  });
 
   // Rule actions
   const handleAddRuleClick = () => {
@@ -105,18 +118,17 @@ export const ReportView: React.FC<ReportViewProps> = ({
     setIsDrawerOpen(true);
   };
 
-  const handleDeleteRule = (id: string) => {
-    if (window.confirm('Bu checklist kuralını silmek istediğinizden emin misiniz?')) {
+  const handleDeleteRule = async (id: string) => {
+    if (!window.confirm('Bu checklist kuralını silmek istediğinizden emin misiniz?')) return;
+    try {
+      await fetch(`http://localhost:8000/checklist/${id}`, { method: 'DELETE' });
       setRules(prev => prev.filter(r => r.id !== id));
-      // Clean up relations from emails
-      setEmails(prev => prev.map(e => ({
-        ...e,
-        relatedRuleIds: e.relatedRuleIds.filter(ruleId => ruleId !== id)
-      })));
+    } catch {
+      alert('Kural silinemedi.');
     }
   };
 
-  const handleSaveRule = (e: React.FormEvent) => {
+  const handleSaveRule = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentRule?.description?.trim()) {
       setRuleFormError('Lütfen kural açıklamasını girin.');
@@ -127,106 +139,45 @@ export const ReportView: React.FC<ReportViewProps> = ({
       return;
     }
 
-    if (currentRule.id) {
-      // Update
-      setRules(prev => prev.map(r => r.id === currentRule.id ? (currentRule as ChecklistRule) : r));
-    } else {
-      // Create
-      const newRule: ChecklistRule = {
-        id: 'r_' + Date.now(),
-        category: currentRule.category,
-        description: currentRule.description,
-        severity: currentRule.severity || 'medium'
-      };
-      setRules(prev => [...prev, newRule]);
+    const payload = {
+      category: currentRule.category,
+      description: currentRule.description,
+      severity: currentRule.severity || 'medium',
+    };
+
+    try {
+      if (currentRule.id) {
+        await fetch(`http://localhost:8000/checklist/${currentRule.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        setRules(prev => prev.map(r => r.id === currentRule.id ? { ...r, ...payload } : r));
+      } else {
+        const res = await fetch('http://localhost:8000/checklist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const created: ChecklistRule = await res.json();
+        setRules(prev => [...prev, created]);
+      }
+    } catch {
+      alert('Kural kaydedilemedi.');
+      return;
     }
+
     setIsDrawerOpen(false);
     setCurrentRule(null);
   };
 
-  const handleDownloadAttachment = (attachment: Attachment) => {
-    if (attachment.url) {
-      const link = document.createElement('a');
-      link.href = attachment.url;
-      link.download = attachment.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      return;
-    }
-
-    const replaceTurkishChars = (str: string) => {
-      const map: Record<string, string> = {
-        'ı': 'i', 'İ': 'I',
-        'ş': 's', 'Ş': 'S',
-        'ğ': 'g', 'Ğ': 'G',
-        'ü': 'u', 'Ü': 'U',
-        'ö': 'o', 'Ö': 'O',
-        'ç': 'c', 'Ç': 'C'
-      };
-      return str.replace(/[ıİşŞğĞüÜöÖçÇ]/g, m => map[m]);
-    };
-
-    // Generate a minimal valid PDF 1.4 structure
-    const pdfHeader = `%PDF-1.4\n`;
-    const obj1 = `1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`;
-    const obj2 = `2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n`;
-    const obj3 = `3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 4 0 R >> >> /MediaBox [0 0 595 842] /Contents 5 0 R >>\nendobj\n`;
-    const obj4 = `4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n`;
-    
-    // PDF layout text stream content
-    const streamContent = `BT\n` +
-      `/F1 16 Tf\n` +
-      `50 780 Td\n` +
-      `(LST-AI AGENTIC AUTOMATION SYSTEM REPORT) Tj\n` +
-      `/F1 12 Tf\n` +
-      `0 -40 Td\n` +
-      `(Document Name: ${replaceTurkishChars(attachment.name)}) Tj\n` +
-      `0 -20 Td\n` +
-      `(File Size: ${attachment.size}) Tj\n` +
-      `0 -20 Td\n` +
-      `(Status: SECURED / VERIFIED) Tj\n` +
-      `0 -40 Td\n` +
-      `(This is a system generated report verified by LST-AI Agentic Automation.) Tj\n` +
-      `0 -20 Td\n` +
-      `(All security credentials scanned: PASS.) Tj\n` +
-      `0 -200 Td\n` +
-      `/F1 10 Tf\n` +
-      `(Generated on: ${new Date().toLocaleString()}) Tj\n` +
-      `ET`;
-
-    const obj5 = `5 0 obj\n<< /Length ${streamContent.length} >>\nstream\n${streamContent}\nendstream\nendobj\n`;
-    
-    const pdfBody = pdfHeader + obj1 + obj2 + obj3 + obj4 + obj5;
-    const startXrefOffset = pdfBody.length;
-    
-    const trailer = `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${startXrefOffset}\n%%EOF`;
-    const fullPdf = pdfBody + trailer;
-
-    // Convert string to Uint8Array to handle binary stream properly
-    const buffer = new ArrayBuffer(fullPdf.length);
-    const view = new Uint8Array(buffer);
-    for (let i = 0; i < fullPdf.length; i++) {
-      view[i] = fullPdf.charCodeAt(i);
-    }
-
-    const blob = new Blob([view], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = attachment.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
 
   return (
-    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
+    <div className="report-view-container" style={{ animation: 'fadeIn 0.5s ease-out' }}>
       <div className="page-header">
         <div className="page-title">
           <h1>Sistem Raporlama</h1>
-          <p>Yürütülen e-posta analizleri ve checklist kurallarının yönetimi.</p>
+          <p>Code review raporları ve checklist kural yönetimi.</p>
         </div>
       </div>
 
@@ -260,7 +211,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                             <span className="rule-desc">{rule.description}</span>
                             <div className="rule-meta">
                               <span className={`rule-severity-badge ${rule.severity}`}>
-                                {rule.severity === 'high' ? 'Yüksek' : rule.severity === 'medium' ? 'Orta' : 'Düşük'}
+                                {rule.severity === 'critical' ? 'Kritik' : rule.severity === 'high' ? 'Yüksek' : rule.severity === 'medium' ? 'Orta' : 'Düşük'}
                               </span>
                             </div>
                           </div>
@@ -289,140 +240,160 @@ export const ReportView: React.FC<ReportViewProps> = ({
           </div>
         </div>
 
-        {/* Right Column: Interactive Email Inbox Client */}
+        {/* Right Column: Code Review Reports Table */}
         <div className="mail-section">
           <div className="panel-card">
             <div className="panel-card-header">
-              <span className="panel-card-title">E-posta Analiz Arayüzü</span>
-              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--primary)', letterSpacing: 0.5 }}>E-posta Günlüğü</span>
+              <span className="panel-card-title">Code Review Raporları</span>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--primary)', letterSpacing: 0.5 }}>
+                {filteredEmails.length} Rapor
+              </span>
             </div>
 
-            <div className="panel-card-body" style={{ padding: 0 }}>
-              <div className="mail-section-container">
-                
-                {/* Mail Sidebar (List) */}
-                <div className="mail-sidebar">
-                  <div className="mail-sidebar-header">Gelen Mailler</div>
-                  {filteredEmails.map(mail => (
-                    <button
-                      key={mail.id}
-                      className={`mail-list-item ${selectedEmailId === mail.id ? 'active' : ''}`}
-                      onClick={() => handleSelectEmail(mail.id)}
-                    >
-                      {!mail.read && <div className="mail-list-item-unread-dot"></div>}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                        <div className="mail-item-sender">{mail.sender}</div>
-                        {mail.attachments && mail.attachments.length > 0 && (
-                          <Paperclip size={12} style={{ color: 'var(--text-muted)', flexShrink: 0, marginLeft: 4 }} />
-                        )}
-                      </div>
-                      <div className="mail-item-subject">{mail.subject}</div>
-                      <div className="mail-item-date">{mail.date}</div>
-                    </button>
-                  ))}
-
-                  {filteredEmails.length === 0 && (
-                    <div style={{ padding: 24, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)' }}>
-                      E-posta bulunamadı.
-                    </div>
-                  )}
-                </div>
-
-                {/* Mail Detail Pane */}
-                <div className="mail-detail-pane">
-                  {selectedEmail ? (
-                    <>
-                      <div className="mail-detail-header">
-                        <h3 className="mail-subject-title">{selectedEmail.subject}</h3>
-                        
-                        <div className="mail-meta-row">
-                          <div className="mail-sender-info">
-                            <User size={14} style={{ color: 'var(--text-muted)' }} />
-                            <span style={{ fontWeight: 600 }}>{selectedEmail.sender}</span>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)' }}>
-                            <Calendar size={12} />
-                            <span>{selectedEmail.date}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div 
-                        className="mail-body" 
-                        dangerouslySetInnerHTML={{ __html: selectedEmail.content }} 
-                        style={selectedEmail.content.trim().startsWith('<') ? { whiteSpace: 'normal' } : {}}
-                      />
-
-                      {/* Attachment Section */}
-                      {selectedEmail.attachments && selectedEmail.attachments.length > 0 && (
-                        <div className="mail-attachments-section">
-                          <span className="mail-attachments-title">Ekli Dosyalar ({selectedEmail.attachments.length})</span>
-                          <div className="mail-attachments-list">
-                            {selectedEmail.attachments.map((att) => (
-                              <div className="mail-attachment-card" key={att.name}>
-                                <div className="mail-attachment-info">
-                                  <FileText className="mail-attachment-icon" size={16} />
-                                  <div className="mail-attachment-meta">
-                                    <span className="mail-attachment-name" title={att.name}>{att.name}</span>
-                                    <span className="mail-attachment-size">{att.size}</span>
-                                  </div>
-                                </div>
-                                <button 
-                                  className="mail-attachment-download-btn"
-                                  onClick={() => handleDownloadAttachment(att)}
-                                  title="Dosyayı İndir"
-                                >
-                                  <Download size={14} />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Related/Matching Rules Section */}
-                      <div className="mail-relations-section">
-                        <span className="mail-relations-title">Eşleşen Kural Denetimi</span>
-                        <div className="mail-matching-rules-list">
-                          {selectedEmail.relatedRuleIds.length === 0 ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--success)' }}>
-                              <CheckCircle size={14} />
-                              <span>Bu mail ile ilgili herhangi bir kural ihlali veya tetikleyici eşleşme bulunmadı.</span>
-                            </div>
-                          ) : (
-                            selectedEmail.relatedRuleIds.map(ruleId => {
-                              const rule = rules.find(r => r.id === ruleId);
-                              if (!rule) return null;
-                              return (
-                                <div className="mail-matching-rule" key={rule.id}>
-                                  <AlertTriangle 
-                                    size={14} 
-                                    style={{ 
-                                      color: rule.severity === 'high' ? 'var(--danger)' : rule.severity === 'medium' ? 'var(--warning)' : 'var(--success)' 
-                                    }} 
-                                  />
-                                  <div>
-                                    <strong style={{ color: 'var(--text-heading)' }}>[{rule.category}]</strong> {rule.description}
-                                  </div>
-                                </div>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="mail-detail-placeholder">
-                      <Mail />
-                      <span>Okumak için bir e-posta seçin.</span>
-                    </div>
-                  )}
-                </div>
+            {/* Filters */}
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ position: 'relative', flex: 1, minWidth: 140 }}>
+                <Search size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                <input
+                  type="text"
+                  placeholder="Kullanıcı adı..."
+                  value={filterAuthor}
+                  onChange={e => setFilterAuthor(e.target.value)}
+                  className="form-control"
+                  style={{ paddingLeft: 28, padding: '6px 10px 6px 28px', fontSize: 12, width: '100%' }}
+                />
               </div>
+              <input
+                type="date"
+                value={filterDateFrom}
+                onChange={e => setFilterDateFrom(e.target.value)}
+                className="form-control"
+                style={{ width: 140, padding: '6px 10px', fontSize: 12 }}
+                title="Başlangıç tarihi"
+              />
+              <input
+                type="date"
+                value={filterDateTo}
+                onChange={e => setFilterDateTo(e.target.value)}
+                className="form-control"
+                style={{ width: 140, padding: '6px 10px', fontSize: 12 }}
+                title="Bitiş tarihi"
+              />
+              {(filterAuthor || filterDateFrom || filterDateTo) && (
+                <button
+                  onClick={() => { setFilterAuthor(''); setFilterDateFrom(''); setFilterDateTo(''); }}
+                  style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                >
+                  Filtreyi Temizle
+                </button>
+              )}
+            </div>
+
+            {/* Table */}
+            <div className="panel-card-body" style={{ padding: 0, overflowX: 'auto' }}>
+              {filteredEmails.length === 0 ? (
+                <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                  <FileText size={32} style={{ marginBottom: 10, opacity: 0.3 }} />
+                  <div>Henüz rapor bulunmuyor.</div>
+                </div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                      {['Yazar', 'Branch / Commit', 'Repo', 'Başlık', 'Tarih', ''].map(h => (
+                        <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredEmails.map((email, i) => (
+                      <tr
+                        key={email.id}
+                        style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'var(--bg-app)', cursor: 'pointer', transition: 'background 0.15s' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover, rgba(255,255,255,0.04))')}
+                        onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 0 ? 'transparent' : 'var(--bg-app)')}
+                        onClick={() => handleOpenModal(email)}
+                      >
+                        <td style={{ padding: '10px 14px', fontWeight: 500, color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
+                          {email.sender}
+                        </td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: 12 }}>
+                          {email.shortSummary}
+                        </td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text-muted)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {email.repo ?? '-'}
+                        </td>
+                        <td style={{ padding: '10px 14px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {email.subject}
+                        </td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: 12, whiteSpace: 'nowrap' }}>
+                          {email.date}
+                        </td>
+                        <td style={{ padding: '10px 14px' }} onClick={e => e.stopPropagation()}>
+                          <button
+                            onClick={() => handleDownloadPdf(email)}
+                            title="PDF İndir"
+                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 6, background: 'var(--bg-app)', border: '1px solid var(--border)', color: 'var(--primary)', cursor: 'pointer' }}
+                          >
+                            <Download size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Report Detail Modal */}
+      {modalEmail && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+        >
+          <div
+            style={{ background: 'var(--bg-card)', borderRadius: 12, width: '100%', maxWidth: 960, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid var(--border)' }}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-heading)' }}>{modalEmail.subject}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
+                  {modalEmail.sender} · {modalEmail.shortSummary} · {modalEmail.date}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => handleDownloadPdf(modalEmail)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                >
+                  <Download size={14} />
+                  PDF İndir
+                </button>
+                <button
+                  onClick={() => setModalEmail(null)}
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 8, background: 'var(--bg-app)', border: '1px solid var(--border)', color: 'var(--text-muted)', cursor: 'pointer' }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+              {modalLoading ? (
+                <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-muted)' }}>Rapor yükleniyor...</div>
+              ) : (
+                <div dangerouslySetInnerHTML={{ __html: modalEmail.content }} style={{ whiteSpace: 'normal' }} />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Drawer Overlay for Add/Edit Rule */}
       {isDrawerOpen && currentRule && (
@@ -480,6 +451,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                     value={currentRule.severity}
                     onChange={e => setCurrentRule(prev => ({ ...prev, severity: e.target.value as RuleSeverity }))}
                   >
+                    <option value="critical">Kritik</option>
                     <option value="high">Yüksek</option>
                     <option value="medium">Orta</option>
                     <option value="low">Düşük</option>

@@ -7,7 +7,7 @@ export interface User {
   avatarUrl?: string;
 }
 
-export type RuleSeverity = 'high' | 'medium' | 'low';
+export type RuleSeverity = 'critical' | 'high' | 'medium' | 'low';
 
 export interface ChecklistRule {
   id: string;
@@ -28,9 +28,11 @@ export interface Email {
   sender: string;
   subject: string;
   date: string;
+  rawDate?: string;
+  repo?: string;
   content: string;
   shortSummary: string;
-  relatedRuleIds: string[]; // IDs of rules this email matches/violates
+  relatedRuleIds: string[];
   read: boolean;
   attachments?: Attachment[];
 }

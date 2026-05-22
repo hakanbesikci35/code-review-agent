@@ -10,7 +10,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parent))
 
 from ai_client import AIClient
-from db_client import save_review
+from db_client import load_checklist_from_db, save_review
 from email_client import send_email
 
 # ---------------------------------------------------------------------------
@@ -244,7 +244,12 @@ def main():
     logger.info("Code Review Agent başlatılıyor...")
 
     config = load_config()
-    checklist = load_checklist()
+    try:
+        checklist = load_checklist_from_db()
+        logger.info("Checklist DB'den yüklendi.")
+    except Exception as exc:
+        logger.warning(f"DB'den checklist yüklenemedi, YAML'a düşülüyor: {exc}")
+        checklist = load_checklist()
     diff = load_diff()
     changed_files = load_changed_files()
 
