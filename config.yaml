@@ -1,2 +1,2 @@
 ai_provider: "gemini"
-ai_model: "gemini-2.5-flash-lite-preview-06-17"
+ai_model: "gemini-2.5-flash-lite"
