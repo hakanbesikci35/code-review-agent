@@ -1,0 +1,93 @@
+/* src/index.css */
+@import './styles/variables.css';
+@import './styles/reset.css';
+@import './styles/typography.css';
+@import './styles/animations.css';
+
+/* Global style overrides and layout-independent helpers */
+.container {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Custom Scrollbar for inner components */
+.custom-scroll {
+  overflow: auto;
+}
+.custom-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* 3D Global Styles for Main Content Areas */
+main div[style*="bg-secondary"],
+main form[style*="bg-secondary"],
+main section[style*="bg-secondary"],
+main div[style*="background-color: var(--bg-secondary)"],
+main form[style*="background-color: var(--bg-secondary)"],
+main section[style*="background-color: var(--bg-secondary)"],
+main div[style*="background-color:var(--bg-secondary)"],
+main form[style*="background-color:var(--bg-secondary)"],
+main section[style*="background-color:var(--bg-secondary)"],
+.login-card-container,
+.terminal-3d-card {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease, border-color 0.3s ease !important;
+  transform-style: preserve-3d;
+}
+
+main div[style*="bg-secondary"]:not([style*="border-bottom"]),
+main form[style*="bg-secondary"]:not([style*="border-bottom"]),
+main section[style*="bg-secondary"]:not([style*="border-bottom"]),
+main div[style*="background-color: var(--bg-secondary)"]:not([style*="border-bottom"]),
+main form[style*="background-color: var(--bg-secondary)"]:not([style*="border-bottom"]),
+main section[style*="background-color: var(--bg-secondary)"]:not([style*="border-bottom"]),
+main div[style*="background-color:var(--bg-secondary)"]:not([style*="border-bottom"]),
+main form[style*="background-color:var(--bg-secondary)"]:not([style*="border-bottom"]),
+main section[style*="background-color:var(--bg-secondary)"]:not([style*="border-bottom"]),
+.login-card-container:not([style*="border-bottom"]),
+.terminal-3d-card:not([style*="border-bottom"]) {
+  border-bottom: 4px solid var(--border-focus) !important;
+}
+
+main div[style*="bg-secondary"]:hover,
+main form[style*="bg-secondary"]:hover,
+main section[style*="bg-secondary"]:hover,
+main div[style*="background-color: var(--bg-secondary)"]:hover,
+main form[style*="background-color: var(--bg-secondary)"]:hover,
+main section[style*="background-color: var(--bg-secondary)"]:hover,
+main div[style*="background-color:var(--bg-secondary)"]:hover,
+main form[style*="background-color:var(--bg-secondary)"]:hover,
+main section[style*="background-color:var(--bg-secondary)"]:hover,
+.login-card-container:hover,
+.terminal-3d-card:hover {
+  transform: perspective(1000px) translateY(-3px) rotateX(1.2deg) rotateY(-0.6deg) translateZ(4px) !important;
+  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.08), 0 3px 6px rgba(0, 0, 0, 0.04) !important;
+  border-color: var(--accent-primary) !important;
+}
+
+

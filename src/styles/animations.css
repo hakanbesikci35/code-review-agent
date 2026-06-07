@@ -1,0 +1,83 @@
+/* src/styles/animations.css */
+
+/* Pulsing active pipeline step */
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(37, 99, 235, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+  }
+}
+
+.pulse-step-blue {
+  animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow-green {
+  0% {
+    box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(5, 150, 105, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(5, 150, 105, 0);
+  }
+}
+
+.pulse-step-green {
+  animation: pulse-glow-green 2s infinite;
+}
+
+/* Shake animation for conflict warning */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+
+.shake-conflict {
+  animation: shake 0.6s ease-in-out;
+}
+
+/* Glowing text/border for alerts */
+@keyframes glow-red-pulse {
+  0%, 100% {
+    border-color: rgba(220, 38, 38, 0.4);
+    box-shadow: 0 0 4px rgba(220, 38, 38, 0.1);
+  }
+  50% {
+    border-color: rgba(220, 38, 38, 0.8);
+    box-shadow: 0 0 12px rgba(220, 38, 38, 0.3);
+  }
+}
+
+.glow-red {
+  animation: glow-red-pulse 3s infinite ease-in-out;
+}
+
+/* Base button transitions */
+.btn-transition {
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.btn-transition:active {
+  transform: scale(0.98);
+}
+
+/* Accessibility: Support prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-delay: -1ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    background-attachment: initial !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+  }
+}
